@@ -456,6 +456,7 @@ function CryptoPro() {
 				oCertificate = certificate;
 				return oStore.Close();
 			}).then(function(){
+				var publicKeyAlgorithmPromise = oCertificate.PublicKey().then(pk => pk.Algorithm)
 				var promises = [
 					oCertificate.HasPrivateKey(),
 					oCertificate.IsValid(),
@@ -465,14 +466,17 @@ function CryptoPro() {
 					oCertificate.Thumbprint,
 					oCertificate.ValidFromDate,
 					oCertificate.ValidToDate,
-					oCertificate.Version
+					oCertificate.Version,
+					publicKeyAlgorithmPromise.then(a => a.FriendlyName),
+					publicKeyAlgorithmPromise.then(a => a.Value),
+					oCertificate.PrivateKey.then(pk => pk.ProviderName),
 				];
 				return Promise.all(promises);
 			}).then(function(a){
 				oInfo = {
 					HasPrivateKey: a[0],
 					IsValid: undefined, // a[1],
-					//TODO: Issuer object
+					Issuer: undefined,
 					IssuerName: a[2],
 					SerialNumber: a[3],
 					SubjectName: a[4],
@@ -481,7 +485,10 @@ function CryptoPro() {
 					Thumbprint: a[5],
 					ValidFromDate: new Date(a[6]),
 					ValidToDate: new Date(a[7]),
-					Version: a[8]
+					Version: a[8],
+					PublicKeyAlgorithmName: a[9],
+					PublicKeyAlgorithmValue: a[10],
+					ProviderName: a[11],
 				};
 				var oCertificateStatus = a[1];
 				return oCertificateStatus.Result;
@@ -489,6 +496,7 @@ function CryptoPro() {
 				var oParesedSubj = parseSubject(oInfo.SubjectName);
 				oParesedSubj = convertDN(oParesedSubj);
 				oInfo.Subject = oParesedSubj;
+				oInfo.Issuer = convertDN(parseSubject(oInfo.IssuerName));
 				oInfo.Name = oParesedSubj['CN'];
 				oInfo.IsValid = result;
 				oInfo.toString = infoToString;
@@ -515,10 +523,11 @@ function CryptoPro() {
 					var oCertificateStatus = oCertificate.IsValid();
 					var oParesedSubj = parseSubject(oCertificate.SubjectName);
 					oParesedSubj = convertDN(oParesedSubj);
+					var PublicKeyAlgorithm = oCertificate.PublicKey().Algorithm
 					var oInfo = {
 						HasPrivateKey: oCertificate.HasPrivateKey(),
 						IsValid: oCertificateStatus.Result,
-						//TODO: Issuer object
+						Issuer: convertDN(parseSubject(oCertificate.IssuerName)),
 						IssuerName: oCertificate.IssuerName,
 						SerialNumber: oCertificate.SerialNumber,
 						SubjectName: oCertificate.SubjectName,
@@ -527,7 +536,10 @@ function CryptoPro() {
 						Thumbprint: oCertificate.Thumbprint,
 						ValidFromDate: new Date(oCertificate.ValidFromDate),
 						ValidToDate: new Date(oCertificate.ValidToDate),
-						Version: oCertificate.Version
+						Version: oCertificate.Version,
+						PublicKeyAlgorithmName: PublicKeyAlgorithm.FriendlyName,
+						PublicKeyAlgorithmValue: PublicKeyAlgorithm.Value,
+						ProviderName: oCertificate.PrivateKey.ProviderName,
 					};
 					oInfo.toString = infoToString;
 					resolve(oInfo);
